@@ -6,9 +6,9 @@ import math
 def BS5228_PropigationLoss(receiverDist,sourceDist):
     '''Calculates the propigation loss over a set distance using BS5338-2 method'''
     if receiverDist < 25:
-        propigationLoss = 20*math.log10(receiverDist/sourceDist)
+        propigationLoss = 20*math.log10(1.*receiverDist/sourceDist)
     else:
-        propigationLoss = 25*math.log10(receiverDist/sourceDist)-2
+        propigationLoss = 25*math.log10(1.*receiverDist/sourceDist)-2
     return propigationLoss
 
 def OpenSpacePowerToPressure(soundPowerLevel,distance,geometricFactor):
