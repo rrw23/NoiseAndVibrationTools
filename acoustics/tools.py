@@ -1,10 +1,20 @@
-# Basic tools to calculate noise information
-# Robin Wareing - 22/09/2017
+# Basic tools to calculate a range of acoustic properties
+#
+# Authors:
+# Robin Wareing - r.r.wareing@gmail.com
+# John Bull - 
+# Michael Smith
+#
+# Sources:
+# Engineering Noise Control - Fourth Edition - Bies & Hansen
+# Guide to assessing road traffic noise - NZ Trasport Agency
+# BS5228-1
+# BS5228-2
 
 import math
 
 def BS5228_PropigationLoss(receiverDist,sourceDist):
-    '''Calculates the propigation loss over a set distance using BS5338-2 method'''
+    '''Calculates the propigation loss over a set distance using BS5338-1 method'''
     if receiverDist < 25:
         propigationLoss = 20*math.log10(1.*receiverDist/sourceDist)
     else:
@@ -12,6 +22,8 @@ def BS5228_PropigationLoss(receiverDist,sourceDist):
     return propigationLoss
 
 def OpenSpacePowerToPressure(soundPowerLevel,distance,geometricFactor):
+    '''Basic conversion from sound power to sound pressure. 
+    Based on geometical spreading with no ground absorption'''
     if geometricFactor == "spherical":
         Q = 1
     elif geometricFactor == "hemispherical":
@@ -24,6 +36,7 @@ def OpenSpacePowerToPressure(soundPowerLevel,distance,geometricFactor):
     return soundPressure
 
 def BuildThirdOctave(startFreq,stopFreq):
+    '''Generates array of 1/3rd octaves between start and stop frequency'''
     referenceThirdOctaves = [12.5,16,20,25,
                        31.5,40,50,63,
                        80,100,125,160,
@@ -40,6 +53,7 @@ def BuildThirdOctave(startFreq,stopFreq):
     return thirdOctaves
     
 def BuildOctave(startFreq,stopFreq):
+    '''Generates array of octaves between start and stop frequency'''
     referenceOctaves = [16,31.5,63,125,
                        250,500,1000,2000,
                        4000,8000,10000]
@@ -50,7 +64,8 @@ def BuildOctave(startFreq,stopFreq):
             octaves.append(band)    
     return octaves
 
-def speedOfSound(temp):
+def SpeedOfSound(temp):
+    '''Calculates speed of sound based on air temperature'''
     R = 8.314
     M = 0.029
     y = 1.4
@@ -58,6 +73,8 @@ def speedOfSound(temp):
     return math.sqrt(y*R*T/M)
 
 def ThirdOctaveWeightingCurves(weightingType,startFreq,stopFreq):
+    '''Generates a 2D array of third octave band centre frequencies,
+    and weighting values for A and C weighing curves'''
     if weightingType == "A":
         rawWeighting = [[10,12.5,16,20,
                       35,31.5,40,50,
@@ -105,6 +122,8 @@ def ThirdOctaveWeightingCurves(weightingType,startFreq,stopFreq):
     return weighting
 
 def OctaveWeightingCurves(weightingType,startFreq,stopFreq):
+    '''Generates a 2D array of octave band centre frequencies,
+    and weighting values for A and C weighing curves'''
     if weightingType == "A":
         rawWeighting = [[31.5,63,125,
                        250,500,1000,2000,
@@ -128,6 +147,7 @@ def OctaveWeightingCurves(weightingType,startFreq,stopFreq):
     return weighting
     
 def dBA(levels,freq,bandType):
+    '''Calculates total dBA level for either 1/3 or 1/1 octave band data'''
     weightedLevel = []
     if bandType == "1/1":
         weightingCurve = OctaveWeightingCurves("A",freq[0],freq[-1])
@@ -138,6 +158,7 @@ def dBA(levels,freq,bandType):
     return dBadd(weightedLevel)
     
 def dBC(levels,freq,bandType):
+    '''Calculates total dBC level for either 1/3 or 1/1 octave band data'''
     weightedLevel = []
     if bandType == "1/1":
         weightingCurve = OctaveWeightingCurves("C",freq[0],freq[-1])
@@ -148,53 +169,161 @@ def dBC(levels,freq,bandType):
     return dBadd(weightedLevel)
     
 def dBadd(levels):
+    '''Performs dB addition (logarithmic addition)'''
     pressureAbs = 0
     for level in levels:
         pressureAbs = pressureAbs + 10**(level/10)
     return 10*math.log10(pressureAbs)
     
 def dBavg(levels):
+    '''Performs dB averaging (logarithmic average)'''
     pressureAbs = 0
     for level in levels:
         pressureAbs = pressureAbs + 10**(level/10)
     return 10*math.log10(pressureAbs/len(levels))
     
-def simpleCRTN(annualAvgTraffic,percentageHeavyVehicles,speed,gradient,
-               surfaceCorrection,receiverDist,angleOfView):
-    ''' Nothing in her yet...'''
+def SimpleCRTN(annualAvgTraffic,percentageHeavyVehicles,speed,gradient,
+               surfaceCorrection,receiverDist,receiverHeight,
+               angleOfView,percentAbsorption):
+    ''' Performs a simple CoRTN calculation,.
+    This does NOT include screening/barriers'''
+    Cdist = -10.0*math.log10(receiverDist/13.5)
+    Cuse = (33.0*math.log10(speed+40+(500./speed))+
+            10.0*math.log10(1+(5.0*percentageHeavyVehicles/speed))-
+            68.8)
+    Cgrad = 0.2*gradient
+    Ccond = 0
+    if receiverHeight >= 1.0 and receiverHeight <= (receiverDist/3-1.2):
+        Cground = 5.2*percentAbsorption*math.log10(3*receiverHeight/(receiverDist+3.5))
+    elif receiverHeight > (receiverDist/3-1.2):
+        Cground = 0
+    elif receiverHeight <= 1.0:
+        Cground = 5.2*percentAbsorption*math.log10(3/(receiverDist+3.5)) 
+    Cbarrier = 0
+    Cview = 10*math.log10(angleOfView/180)
+    LA10 = (29.1 + 10*math.log10(annualAvgTraffic)+Cdist+Cuse+Cgrad+Ccond+
+            Cground+Cbarrier+Cview)
+    LAeq = LA10 - 3
+    return LAeq
     
-def simpleISO9140():
+def SimpleISO9140():
     '''Nothin in here yet'''
 
-#print("Check propigation loss")
-#print(BS5228_PropigationLoss(100,10))
-#print("Test Power to Pressure Calculator")
-#print(OpenSpacePowerToPressure(110,50,"spherical"))
-#print("Check third octaves")
-#print(BuildThirdOctave(50,500))
-#print("Check octaves")
-#print(BuildOctave(50,500))
-#print("Check speed of sound")
-#print(speedOfSound(20))
-#print('Check A-weighting')
-#print(ThirdOctaveWeightingCurves("A",50,500))
-#print(OctaveWeightingCurves("A",50,500))
-#print('Check C-weighting')
-#print(ThirdOctaveWeightingCurves("C",50,500))
-#print(OctaveWeightingCurves("C",50,500))
-#print('Check dBA - 1/3')
-#print(print(dBA([90,90,90],[50,63,80],"1/3")))
-#print('Check dBA - 1/1')
-#print(print(dBA([90,90,90],[63,125,250],"1/1")))
-#print('Check dBC - 1/3')
-#print(print(dBC([90,90,90],[50,63,80],"1/3")))
-#print('Check dBC - 1/1')
-#print(print(dBC([90,90,90],[63,125,250],"1/1")))
-#print('Check dBadd')
-#print(dBadd([90,90]))
-#print('Check dBavg')
-#print(dBavg([90,90,90]))
-#print('Check simple CRTN')
-#print('-------')
-#print('Check ISO9140')
-#print('-------')
+def SourceCountCorrectinon(num):
+    '''Correction factor for multiple sources'''
+    return 10*math.log10(num)
+
+def DutyCycleCorrection(dutyCycle):
+    '''Correction factor for duty cycle of sources'''
+    return 10*math.log10(dutyCycle)
+
+def NZS6806_Category(level,roadType):
+    '''Returns the NZS6806 category (A, B or C) based on the input level and 
+    road type (New, New(HighFlow), or Altered)'''
+    if roadType == "New":
+        if level <= 57:
+            return "A"
+        elif level > 57 and level <= 64:
+            return "B"
+        elif level > 64:
+            return "C"
+    if roadType == "New(HighFlow)":
+        if level <= 64:
+            return "A"
+        elif level > 64 and level <= 67:
+            return "B"
+        elif level > 67:
+            return "C"
+    if roadType == "Altered":
+        if level <= 64:
+            return "A"
+        elif level > 64 and level <= 67:
+            return "B"
+        elif level > 67:
+            return "C"
+
+def RoadSurfaceCorrection():
+    '''nothin in 'ere yet...'''
+
+def TeirOneRoadTrafficScreen(numberOfPPFs,AADT):
+    '''Performs teir 1 assessment of road traffic noise'''
+    '''PPF risk rating'''
+    if numberOfPPFs == 0:
+        riskPPFs = "N/A"
+    elif numberOfPPFs > 0 and numberOfPPFs <= 50:
+        riskPPFs = "Low"
+    elif numberOfPPFs > 50 and numberOfPPFs <= 200:
+        riskPPFs = "Medium"
+    elif numberOfPPFs > 200:
+        riskPPFs = "High"
+    '''AADT risk rating'''
+    if AADT <= 2000:
+        riskAADT = "N/A"
+    elif numberOfPPFs > 2000 and numberOfPPFs <= 10000:
+        riskAADT = "Low"
+    elif numberOfPPFs > 10000 and numberOfPPFs <= 50000:
+        riskAADT = "Medium"
+    elif numberOfPPFs > 50000:
+        riskAADT = "High"
+    '''Total risk rating'''
+    if riskPPFs == "N/A" or riskAADT == "N/A":
+        teir1Risk = "N/A"
+    elif riskPPFs == "Low" and riskAADT == "Low":
+        teir1Risk = "Low"
+    elif riskPPFs == "High" or riskAADT == "High":
+        teir1Risk = "High"
+    else:
+        teir1Risk = "Medium"
+    return [riskPPFs,riskAADT,teir1Risk]
+    
+def TunnelingVibration(tunnelDist):
+    '''From Table E1 in BS5228-2:2009'''
+    return 180./(math.pow(tunnelDist,1.3))
+
+def TunnelingGroundBournNoise(tunnelDist):
+    '''From Table E1 in BS5228-2:2009'''
+    return 127-54*math.log10(tunnelDist)
+
+def VibroStoneColumns(receiverDist):
+    '''From Table E1 in BS5228-2:2009
+    Produces a range of vibration levels
+    [5%, 33%, 50%]'''
+    v5Percent = 95./math.pow(receiverDist)
+    v33Percent = 44./math.pow(receiverDist)
+    v50Percent = 33./math.pow(receiverDist)
+    return [v5Percent,v33Percent,v50Percent]
+
+#==============================================================================
+#     
+# Below is a list of items to be included into the tool set (RW 20170930)
+# Add/update this list accordingly.
+#
+# In additin 
+#
+# - flow resistivity
+# - Wavelength
+# - Wavenumber
+# - ISO9613-2 propagation tools
+# - CONCAWE propagation tools
+# - CNOSSOS propagation tools
+# - NZS6806 screening tools (teir 1 assessment done)
+# Propagation loss for the following:
+# - Point source
+# - line source
+# - plane source
+# - array of points source
+# - Angle of view correction
+# - SEL calculation tools
+# - Vibration tools:
+# - TRL calcs
+# - BS5228-2 calcs
+# Single number ratings:
+# - Rw
+# -Ctr
+# -Rw+C
+# -Rw+Ctr
+# -STC
+# - Ln,w
+# - IIC
+# 
+#==============================================================================
