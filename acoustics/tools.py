@@ -35,7 +35,7 @@ def OpenSpacePowerToPressure(soundPowerLevel,distance,geometricFactor):
     soundPressure = soundPowerLevel-math.log10((4*math.pi*distance**2)/Q)
     return soundPressure
 
-def BuildThirdOctave(startFreq,stopFreq):
+def BuildThirdOctave(startFreq = 12.5,stopFreq = 20000):
     '''Generates array of 1/3rd octaves between start and stop frequency'''
     referenceThirdOctaves = [12.5,16,20,25,
                        31.5,40,50,63,
@@ -52,7 +52,7 @@ def BuildThirdOctave(startFreq,stopFreq):
             thirdOctaves.append(band)
     return thirdOctaves
     
-def BuildOctave(startFreq,stopFreq):
+def BuildOctave(startFreq = 16,stopFreq = 10000):
     '''Generates array of octaves between start and stop frequency'''
     referenceOctaves = [16,31.5,63,125,
                        250,500,1000,2000,
@@ -64,13 +64,23 @@ def BuildOctave(startFreq,stopFreq):
             octaves.append(band)    
     return octaves
 
-def SpeedOfSound(temp):
+def SpeedOfSound(temp = 20):
     '''Calculates speed of sound based on air temperature'''
     R = 8.314
     M = 0.029
     y = 1.4
     T = 273 + temp
     return math.sqrt(y*R*T/M)
+
+def AirDensity(temp = 20):
+    R = 287.058
+    P = 101.325
+    T = 273 + temp
+    return P/(R*T)
+
+def Wavelength(frequency):
+    C = SpeedOfSound()
+    return C/frequency
 
 def ThirdOctaveWeightingCurves(weightingType,startFreq,stopFreq):
     '''Generates a 2D array of third octave band centre frequencies,
@@ -276,22 +286,29 @@ def TeirOneRoadTrafficScreen(numberOfPPFs,AADT):
         teir1Risk = "Medium"
     return [riskPPFs,riskAADT,teir1Risk]
     
-def TunnelingVibration(tunnelDist):
-    '''From Table E1 in BS5228-2:2009'''
-    return 180./(math.pow(tunnelDist,1.3))
+def InfiniteSeriesOfPoints(coherance,sourceSpacing,receiverDist,sourcePower):
+    speedOfSound = SpeedOfSound(20)
+    airDensity = AirDensity(20)
+    if coherance == "Coherant":
+        sourceLevel = (sourcePower - 6 - 10*math.log10(receiverDist)- 10*math.log10(sourceSpacing)+10*math.log10(speedOfSound*airDensity/400))
+    elif coherance == "Incoherant":
+        sourceLevel = (sourcePower - 8 - 10*math.log10(receiverDist)- 10*math.log10(sourceSpacing)+10*math.log10(speedOfSound*airDensity/400))
+    return sourceLevel
+        
+def DirectivityIndex(directivityFactor):
+    if directivityFactor == 1:
+        directivityIndex = 0
+    elif directivityFactor == 2:
+        directivityIndex = 3
+    elif directivityFactor == 3:
+        directivityIndex = 6
+    elif directivityFactor == 4:
+        directivityIndex = 9
+    return directivityIndex
 
-def TunnelingGroundBournNoise(tunnelDist):
-    '''From Table E1 in BS5228-2:2009'''
-    return 127-54*math.log10(tunnelDist)
+def VibrationAtADistance(soilAttenuation,measuredVibration,measurementDist,receiverDist):
+    return measuredVibration*((measurementDist/receiverDist)**0.5)*math.exp(-1*soilAttenuation*(receiverDist-measurementDist))
 
-def VibroStoneColumns(receiverDist):
-    '''From Table E1 in BS5228-2:2009
-    Produces a range of vibration levels
-    [5%, 33%, 50%]'''
-    v5Percent = 95./math.pow(receiverDist)
-    v33Percent = 44./math.pow(receiverDist)
-    v50Percent = 33./math.pow(receiverDist)
-    return [v5Percent,v33Percent,v50Percent]
 
 #==============================================================================
 #     
@@ -301,7 +318,6 @@ def VibroStoneColumns(receiverDist):
 # In additin 
 #
 # - flow resistivity
-# - Wavelength
 # - Wavenumber
 # - ISO9613-2 propagation tools
 # - CONCAWE propagation tools
@@ -314,9 +330,6 @@ def VibroStoneColumns(receiverDist):
 # - array of points source
 # - Angle of view correction
 # - SEL calculation tools
-# - Vibration tools:
-# - TRL calcs
-# - BS5228-2 calcs
 # Single number ratings:
 # - Rw
 # -Ctr
@@ -325,5 +338,4 @@ def VibroStoneColumns(receiverDist):
 # -STC
 # - Ln,w
 # - IIC
-# 
 #==============================================================================
