@@ -5,6 +5,8 @@ Created on Sun Oct  1 08:03:39 2017
 
 Series of functions to produce emperical sound powers/pressures
 Based on Chapter 11 of Engineering Noise Control, Bies & Hansen
+
+Vibration based on TRL and NZTA research report 268?
 """
 import math
 
@@ -67,3 +69,66 @@ def CoolingTowerOctBand(coolingTowerType,coolingTowerPower):
         LwBands.append(Lw-item)
     return LwBands
 
+def TunnelingVibration(tunnelDist):
+    '''From Table E1 in BS5228-2:2009'''
+    return 180./(math.pow(tunnelDist,1.3))
+
+def TunnelingGroundBournNoise(tunnelDist):
+    '''From Table E1 in BS5228-2:2009'''
+    return 127-54*math.log10(tunnelDist)
+
+def VibroStoneColumns(receiverDist):
+    '''From Table E1 in BS5228-2:2009
+    Produces a range of vibration levels
+    [5%, 33%, 50%]'''
+    v5Percent = 95./math.pow(receiverDist)
+    v33Percent = 44./math.pow(receiverDist)
+    v50Percent = 33./math.pow(receiverDist)
+    return [v5Percent,v33Percent,v50Percent]
+
+def BlastionOverpressure(chargeMass,receiverDist,siteCondition):
+    if siteCondition == "Unconfined":
+        siteConstant = 516
+    elif siteCondition == "Confined":
+        siteConstant = 100
+    overpressure = siteConstant*(receiverDist/(chargeMass**(1/3)))**-1.45
+    return overpressure
+
+def AirBlastNoise(chargeMass,receiverDist,siteCondition):
+    overpressure = BlastionOverpressure(chargeMass,receiverDist,siteCondition)
+    return 20*math.log10(overpressure/0.02)
+
+def VibrationCompaction(runCondition,drumAmplitude,drumNumber,drumWidth,receiverDist):
+    if runCondition == "steady-state":
+        v5Percent = 75*math.sqrt(drumNumber)*(drumAmplitude/(receiverDist+drumWidth))**1.5
+        v33Percent = 143*math.sqrt(drumNumber)*(drumAmplitude/(receiverDist+drumWidth))**1.5
+        v50Percent = 276*math.sqrt(drumNumber)*(drumAmplitude/(receiverDist+drumWidth))**1.5
+    elif runCondition == "start-up":
+        v5Percent = 65*math.sqrt(drumNumber)*((drumAmplitude**1.5)/((receiverDist+drumWidth)**1.3))
+        v33Percent = 106*math.sqrt(drumNumber)*((drumAmplitude**1.5)/((receiverDist+drumWidth)**1.3))
+        v50Percent = 177*math.sqrt(drumNumber)*((drumAmplitude**1.5)/((receiverDist+drumWidth)**1.3))
+    return [v5Percent,v33Percent,v50Percent]
+
+def PercussivePiling(pileDiveCondition,hammerEnergy,receiverDist):
+    if pileDiveCondition == "to refusal":
+        scalingFactor = 5
+    elif pileDiveCondition == "driven through":
+        scalingFactor = 3
+    elif pileDiveCondition == "not driven through":
+        scalingFactor = 1.5
+    return scalingFactor*(math.sqrt(hammerEnergy)/(receiverDist**1.3))
+
+def VibroPiling(receiverDist,runCondition):
+    if runCondition == "start-up":
+        decayFactor = 1.2
+    elif runCondition == "steady-state":
+        decayFactor = 1.4
+    else:
+        decayFactor = 1.3
+    v5Percent = 60/(receiverDist**decayFactor)
+    v33Percent = 126/(receiverDist**decayFactor)
+    v50Percent = 266/(receiverDist**decayFactor)
+    return [v5Percent,v33Percent,v50Percent]
+
+def DynamicCompaction(receiverDist,damperEnergy):
+    return 0.037*(math.sqrt(damperEnergy)/receiverDist)**1.7
